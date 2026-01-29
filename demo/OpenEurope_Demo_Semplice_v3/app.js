@@ -66,6 +66,51 @@
     a.remove();
   }
 
+  const INSTALL_STATUS_URL = "install_status.json";
+
+  function setInstallStatusItem(key, status) {
+    const item = document.getElementById(`status-${key}`);
+    const message = document.getElementById(`status-msg-${key}`);
+    if (!item || !message) return;
+    item.classList.remove("ok", "error", "loading");
+    if (!status) {
+      item.classList.add("error");
+      message.textContent = "Stato non disponibile";
+      return;
+    }
+    item.classList.add(status.ok ? "ok" : "error");
+    message.textContent = status.message || (status.ok ? "OK" : "Errore");
+  }
+
+  async function refreshInstallStatus() {
+    const updatedEl = document.getElementById("status-updated");
+    const targets = ["python", "pandas", "openpyxl", "structure", "server"];
+    targets.forEach((key) => {
+      const item = document.getElementById(`status-${key}`);
+      const message = document.getElementById(`status-msg-${key}`);
+      if (item && message) {
+        item.classList.remove("ok", "error");
+        item.classList.add("loading");
+        message.textContent = "In verifica...";
+      }
+    });
+    try {
+      const response = await fetch(`${INSTALL_STATUS_URL}?t=${Date.now()}`);
+      if (!response.ok) throw new Error("Status non disponibile");
+      const payload = await response.json();
+      targets.forEach((key) => setInstallStatusItem(key, payload[key]));
+      if (updatedEl) {
+        const updatedAt = payload.updated_at
+          ? new Date(payload.updated_at).toLocaleString("it-IT")
+          : "—";
+        updatedEl.textContent = `Ultimo aggiornamento: ${updatedAt}`;
+      }
+    } catch (error) {
+      targets.forEach((key) => setInstallStatusItem(key, null));
+      if (updatedEl) updatedEl.textContent = "Ultimo aggiornamento: non disponibile";
+    }
+  }
+
   function setActiveStep(step) {
     // Evidenzia il pulsante di navigazione e mostra/nasconde i pannelli
     console.log("setActiveStep called with step:", step);
@@ -2174,6 +2219,7 @@
 
     renderCharts(ag);
     updateReportPreview();
+    refreshInstallStatus();
   }
 
   function renderCharts(ag) {
@@ -2486,6 +2532,15 @@
   const exportGasBtn = document.getElementById("btnExportGasCsv");
   if (exportGasBtn) exportGasBtn.addEventListener("click", () => {
     exportGasCsv();
+  });
+
+  const refreshInstallBtn = document.getElementById("btnRefreshInstall");
+  if (refreshInstallBtn) refreshInstallBtn.addEventListener("click", () => {
+    refreshInstallStatus();
+  });
+  const openInstallerBtn = document.getElementById("btnOpenInstaller");
+  if (openInstallerBtn) openInstallerBtn.addEventListener("click", () => {
+    window.open("http://localhost:9999", "_blank", "noopener");
   });
 
 })();

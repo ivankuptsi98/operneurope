@@ -13,9 +13,24 @@ import json
 import threading
 import time
 import webbrowser
+from datetime import datetime, timezone
 from pathlib import Path
 
 PORT = 9999
+BASE_DIR = Path(__file__).resolve().parent
+INSTALL_STATUS_PATH = BASE_DIR / "demo" / "OpenEurope_Demo_Semplice_v3" / "install_status.json"
+
+
+def write_install_status(status, source="web_installer"):
+    payload = {
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+        "source": source,
+        **status,
+    }
+    try:
+        INSTALL_STATUS_PATH.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    except Exception as exc:
+        print(f"[STATUS] Impossibile aggiornare {INSTALL_STATUS_PATH}: {exc}")
 
 # Classe TCPServer che riusa le porte
 class ReuseAddrTCPServer(socketserver.TCPServer):
@@ -71,6 +86,7 @@ class InstallerHandler(http.server.SimpleHTTPRequestHandler):
                 "pandas": self.check_module("pandas"),
                 "openpyxl": self.check_module("openpyxl"),
                 "structure": self.check_structure(),
+                "server": self.check_server(),
             }
             
             status["all_ok"] = all([
@@ -79,6 +95,7 @@ class InstallerHandler(http.server.SimpleHTTPRequestHandler):
                 status["openpyxl"]["ok"],
                 status["structure"]["ok"]
             ])
+            write_install_status(status)
             
             self.send_response(200)
             self.send_header('Content-type', 'application/json; charset=utf-8')
@@ -127,9 +144,32 @@ class InstallerHandler(http.server.SimpleHTTPRequestHandler):
             
             print("[INSTALL] ✓ Completato")
             response = {"success": True, "message": "Installazione completata"}
+            status = {
+                "python": self.check_python(),
+                "pandas": self.check_module("pandas"),
+                "openpyxl": self.check_module("openpyxl"),
+                "structure": self.check_structure(),
+                "server": self.check_server(),
+            }
+            status["all_ok"] = all([
+                status["python"]["ok"],
+                status["pandas"]["ok"],
+                status["openpyxl"]["ok"],
+                status["structure"]["ok"]
+            ])
+            write_install_status(status)
         except Exception as e:
             print(f"[INSTALL] ✗ Errore: {e}")
             response = {"success": False, "message": str(e)[:200]}
+            status = {
+                "python": self.check_python(),
+                "pandas": self.check_module("pandas"),
+                "openpyxl": self.check_module("openpyxl"),
+                "structure": self.check_structure(),
+                "server": self.check_server(),
+                "all_ok": False,
+            }
+            write_install_status(status)
         
         self.send_response(200)
         self.send_header('Content-type', 'application/json; charset=utf-8')
@@ -193,7 +233,7 @@ class InstallerHandler(http.server.SimpleHTTPRequestHandler):
             pass
         try:
             print("[DEMO] Avvio server...")
-            os.chdir('/workspaces/operneurope')
+            os.chdir(BASE_DIR)
             subprocess.Popen(
                 [sys.executable, "run_demo.py"],
                 stdout=subprocess.DEVNULL,
@@ -234,7 +274,7 @@ class InstallerHandler(http.server.SimpleHTTPRequestHandler):
         
         try:
             print("[DEMO] Avvio server...")
-            os.chdir('/workspaces/operneurope')
+            os.chdir(BASE_DIR)
             subprocess.Popen(
                 [sys.executable, "run_demo.py"],
                 stdout=subprocess.DEVNULL,
@@ -273,6 +313,21 @@ class InstallerHandler(http.server.SimpleHTTPRequestHandler):
             "ok": ok,
             "message": "Struttura OK" if ok else "File mancanti"
         }
+
+    @staticmethod
+    def check_server():
+        """Verifica se il server demo è attivo"""
+        try:
+            import socket
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(0.5)
+            result = sock.connect_ex(('127.0.0.1', 8000))
+            sock.close()
+            if result == 0:
+                return {"ok": True, "message": "Server attivo su 8000"}
+            return {"ok": False, "message": "Server demo non avviato"}
+        except Exception:
+            return {"ok": False, "message": "Server demo non raggiungibile"}
     
     @staticmethod
     def get_html():
@@ -538,7 +593,7 @@ class InstallerHandler(http.server.SimpleHTTPRequestHandler):
 </html>"""
 
 def main():
-    os.chdir('/workspaces/operneurope')
+    os.chdir(BASE_DIR)
     
     print(f"\n{'='*60}")
     print("  🚀 OpenEurope - Web Installer")
