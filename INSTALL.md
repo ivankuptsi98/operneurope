@@ -132,7 +132,7 @@ Se vuoi distribuire un installer standalone per Windows, usa `PyInstaller` su un
 powershell -ExecutionPolicy Bypass -File build_windows_installer.ps1
 ```
 
-3. L'exe risultante sarà in `dist\\web_installer.exe`
+3. L'exe risultante sarà in `dist\\OpenEurope_Installer.exe`
 
 Note:
 - La build dell'.exe deve essere fatta su Windows per compatibilità nativa.

@@ -1,0 +1,25 @@
+{
+  "updated_at": null,
+  "source": "default",
+  "python": {
+    "ok": false,
+    "message": "Python non verificato"
+  },
+  "pandas": {
+    "ok": false,
+    "message": "pandas non verificato"
+  },
+  "openpyxl": {
+    "ok": false,
+    "message": "openpyxl non verificato"
+  },
+  "structure": {
+    "ok": false,
+    "message": "Struttura non verificata"
+  },
+  "server": {
+    "ok": false,
+    "message": "Server demo non verificato"
+  },
+  "all_ok": false
+}

@@ -9,7 +9,12 @@ import os
 import subprocess
 import time
 import webbrowser
+import json
+from datetime import datetime, timezone
 from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent
+INSTALL_STATUS_PATH = BASE_DIR / "demo" / "OpenEurope_Demo_Semplice_v3" / "install_status.json"
 
 # Colori per output
 class Colors:
@@ -35,6 +40,18 @@ def print_status(message, status="info"):
         print(f"{Colors.YELLOW}⚠ {message}{Colors.END}")
     elif status == "error":
         print(f"{Colors.RED}✗ {message}{Colors.END}")
+
+
+def write_install_status(status, source="install_and_run"):
+    payload = {
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+        "source": source,
+        **status,
+    }
+    try:
+        INSTALL_STATUS_PATH.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    except Exception as exc:
+        print_status(f"Impossibile aggiornare {INSTALL_STATUS_PATH}: {exc}", "warning")
 
 def check_python_version():
     """Verifica che Python 3.8+ sia installato"""
@@ -102,7 +119,7 @@ def check_project_structure():
     
     all_ok = True
     for filepath in required_files:
-        full_path = Path(filepath)
+        full_path = BASE_DIR / filepath
         if full_path.exists():
             print_status(f"{filepath}", "success")
         else:
@@ -110,6 +127,46 @@ def check_project_structure():
             all_ok = False
     
     return all_ok
+
+
+def check_server_status():
+    """Verifica se il server demo è attivo"""
+    try:
+        import socket
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(0.5)
+        result = sock.connect_ex(('127.0.0.1', 8000))
+        sock.close()
+        if result == 0:
+            return {"ok": True, "message": "Server attivo su 8000"}
+        return {"ok": False, "message": "Server demo non avviato"}
+    except Exception:
+        return {"ok": False, "message": "Server demo non raggiungibile"}
+
+
+def build_install_status():
+    def module_status(name):
+        try:
+            __import__(name)
+            return {"ok": True, "message": f"{name} ✓"}
+        except ImportError:
+            return {"ok": False, "message": f"{name} mancante"}
+
+    structure_ok = check_project_structure()
+    status = {
+        "python": {"ok": sys.version_info >= (3, 8), "message": f"Python {sys.version.split()[0]}"},
+        "pandas": module_status("pandas"),
+        "openpyxl": module_status("openpyxl"),
+        "structure": {"ok": structure_ok, "message": "Struttura OK" if structure_ok else "File mancanti"},
+        "server": check_server_status(),
+    }
+    status["all_ok"] = all([
+        status["python"]["ok"],
+        status["pandas"]["ok"],
+        status["openpyxl"]["ok"],
+        status["structure"]["ok"],
+    ])
+    return status
 
 def start_server():
     """Avvia il server di demo"""
@@ -121,7 +178,8 @@ def start_server():
             [sys.executable, "run_demo.py"],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            text=True
+            text=True,
+            cwd=BASE_DIR
         )
         
         print_status("Server in avvio...", "info")
@@ -189,6 +247,8 @@ def main():
     if not check_project_structure():
         print_status("Struttura progetto incompleta!", "error")
         sys.exit(1)
+
+    write_install_status(build_install_status())
     
     print()
     
@@ -201,6 +261,8 @@ def main():
     if not verify_dependencies():
         print_status("Verificare l'installazione delle dipendenze", "error")
         sys.exit(1)
+
+    write_install_status(build_install_status())
     
     print()
     
@@ -214,6 +276,8 @@ def main():
         print_status("Chiusura server e uscita", "error")
         server_process.terminate()
         sys.exit(1)
+
+    write_install_status(build_install_status())
     
     print()
     

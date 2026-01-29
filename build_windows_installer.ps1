@@ -10,10 +10,10 @@ pip install --upgrade pip
 pip install pyinstaller
 
 # 3) Build dell'exe (onefile)
-# Questo creerà dist/web_installer.exe
-pyinstaller --onefile --name web_installer web_installer.py
+# Questo creerà dist/OpenEurope_Installer.exe
+pyinstaller --onefile --name OpenEurope_Installer web_installer.py
 
 # Note:
 # - Eseguire nello stesso folder del repository
-# - Il risultato si trova in 'dist\web_installer.exe'
+# - Il risultato si trova in 'dist\OpenEurope_Installer.exe'
 # - Per includere file addizionali, modificare lo spec di PyInstaller

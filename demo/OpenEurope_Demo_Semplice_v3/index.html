@@ -730,6 +730,56 @@
           </div>
         </div>
 
+        <div class="card install-status">
+          <h2>Stato installazione</h2>
+          <p class="muted small">
+            La dashboard legge il file <code>install_status.json</code> generato dall’installer per verificare
+            che dipendenze e server siano pronti.
+          </p>
+          <div class="status-list">
+            <div class="status-item loading" id="status-python">
+              <span class="status-dot"></span>
+              <div>
+                <div class="status-label">Python</div>
+                <div class="status-message" id="status-msg-python">In verifica...</div>
+              </div>
+            </div>
+            <div class="status-item loading" id="status-pandas">
+              <span class="status-dot"></span>
+              <div>
+                <div class="status-label">pandas</div>
+                <div class="status-message" id="status-msg-pandas">In verifica...</div>
+              </div>
+            </div>
+            <div class="status-item loading" id="status-openpyxl">
+              <span class="status-dot"></span>
+              <div>
+                <div class="status-label">openpyxl</div>
+                <div class="status-message" id="status-msg-openpyxl">In verifica...</div>
+              </div>
+            </div>
+            <div class="status-item loading" id="status-structure">
+              <span class="status-dot"></span>
+              <div>
+                <div class="status-label">Struttura progetto</div>
+                <div class="status-message" id="status-msg-structure">In verifica...</div>
+              </div>
+            </div>
+            <div class="status-item loading" id="status-server">
+              <span class="status-dot"></span>
+              <div>
+                <div class="status-label">Server demo</div>
+                <div class="status-message" id="status-msg-server">In verifica...</div>
+              </div>
+            </div>
+          </div>
+          <div class="row">
+            <button class="ghost" id="btnRefreshInstall">Aggiorna stato</button>
+            <button class="primary" id="btnOpenInstaller">Apri installer</button>
+          </div>
+          <div class="muted small" id="status-updated">Ultimo aggiornamento: —</div>
+        </div>
+
         <div class="card" id="reportArea">
           <h2>Report (anteprima)</h2>
           <div class="muted small">

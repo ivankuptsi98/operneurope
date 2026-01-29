@@ -164,6 +164,54 @@ button.ghost{
   color:var(--text);
 }
 button.ghost:hover{background:rgba(148,163,184,.08)}
+
+.install-status .status-list{
+  display:grid;
+  grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));
+  gap:10px;
+  margin:12px 0;
+}
+.install-status .status-item{
+  display:flex;
+  gap:10px;
+  align-items:flex-start;
+  padding:10px;
+  border-radius:12px;
+  border:1px solid rgba(148,163,184,.15);
+  background:rgba(15,23,42,.35);
+}
+.install-status .status-dot{
+  width:10px;
+  height:10px;
+  border-radius:50%;
+  margin-top:6px;
+  background:rgba(148,163,184,.5);
+  flex-shrink:0;
+}
+.install-status .status-label{
+  font-weight:700;
+  font-size:13px;
+}
+.install-status .status-message{
+  color:var(--muted);
+  font-size:12px;
+  margin-top:4px;
+}
+.install-status .status-item.ok{
+  border-color:rgba(52,211,153,.35);
+  background:rgba(16,185,129,.12);
+}
+.install-status .status-item.ok .status-dot{background:var(--accent2)}
+.install-status .status-item.error{
+  border-color:rgba(251,113,133,.4);
+  background:rgba(251,113,133,.12);
+}
+.install-status .status-item.error .status-dot{background:var(--danger)}
+.install-status .status-item.loading{
+  border-color:rgba(96,165,250,.35);
+  background:rgba(96,165,250,.12);
+}
+.install-status .status-item.loading .status-dot{background:var(--accent)}
 label.filelike{
   display:inline-flex;align-items:center;gap:8px;
   border:1px solid rgba(148,163,184,.24);
