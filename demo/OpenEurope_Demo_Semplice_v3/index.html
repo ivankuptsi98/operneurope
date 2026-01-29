@@ -1,0 +1,833 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>OpenEurope — Demo (versione semplice)</title>
+  <link rel="stylesheet" href="styles.css"/>
+  <!-- Librerie da CDN per evitare installazioni (funziona aprendo il file in browser) -->
+  <script defer src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.0/dist/tesseract.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js"></script>
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">OE</div>
+      <div>
+        <div class="title">OpenEurope</div>
+        <div class="subtitle">Demo “zero install” — estrazione bollette (PDF/OCR) • F1/F2/F3 • macchinari • report</div>
+      </div>
+    </div>
+
+    <div class="top-actions">
+      <button class="ghost" id="btnExportJSON" title="Esporta progetto in JSON">Esporta dati</button>
+      <label class="ghost filelike" title="Importa progetto JSON">
+        Importa dati <input type="file" id="fileImportJSON" accept="application/json" hidden>
+      </label>
+      <button class="primary" id="btnExportPDF" title="Genera un report PDF">Esporta report PDF</button>
+    </div>
+  </header>
+
+  <main class="shell">
+    <aside class="steps">
+      <div class="steps-title">Percorso guidato</div>
+      <button class="step active" data-step="1"><span class="n">1</span> Progetto</button>
+      <button class="step" data-step="2"><span class="n">2</span> Consumi (F1/F2/F3/Gas)</button>
+      <button class="step" data-step="3"><span class="n">3</span> Macchinari</button>
+      <!-- nuovo step: autoproduzione -->
+      <button class="step" data-step="4"><span class="n">4</span> Autoproduzione</button>
+      <!-- nuovo step: energia termica -->
+      <button class="step" data-step="5"><span class="n">5</span> Energia termica</button>
+      <button class="step" data-step="6"><span class="n">6</span> Dashboard</button>
+      <button class="step" data-step="7"><span class="n">7</span> Audit log</button>
+
+      <div class="note">
+        <div class="note-title">Privacy</div>
+        <div class="note-body">
+          Tutto avviene <b>localmente</b> nel tuo browser: nessun dato viene caricato online.
+          L’estrazione da PDF usa lettura testo + OCR (se serve) con conferma manuale.
+        </div>
+      </div>
+    </aside>
+
+    <section class="content">
+      <!-- STEP 1 -->
+      <section class="panel" id="step1">
+        <h1>1) Imposta il progetto</h1>
+        <p class="muted">
+          Dai un nome al progetto e scegli l’anno di riferimento. Puoi aggiornare questi dati in qualsiasi momento.
+        </p>
+
+        <div class="grid2">
+          <div class="card">
+            <h2>Dati principali</h2>
+            <div class="form">
+              <label>Nome progetto
+                <input type="text" id="projectName" placeholder="Es. OpenEurope — Demo Cliente X">
+              </label>
+              <label>Azienda / Stabilimento
+                <input type="text" id="projectSite" placeholder="Es. Cliente X — Stabilimento Bologna">
+              </label>
+              <label>Anno di riferimento
+                <input type="number" id="projectYear" min="2000" max="2100" step="1">
+              </label>
+              <label>Note (opzionale)
+                <textarea id="projectNotes" rows="3" placeholder="Contesto, obiettivi, ecc."></textarea>
+              </label>
+
+              <div class="row">
+                <button class="primary" id="btnSaveProject">Salva</button>
+                <button class="ghost" id="btnLoadDemo">Carica dataset demo</button>
+              </div>
+            </div>
+          </div>        </div>
+
+        <div class="grid2">
+          <div class="card">
+            <h2>Anagrafica impresa</h2>
+            <div class="form">
+              <label>Denominazione azienda
+                <input type="text" id="companyName" placeholder="Es. OpenEurope S.p.A.">
+              </label>
+              <label>Partita IVA / C.F.
+                <input type="text" id="companyVAT" placeholder="Es. IT12345678901">
+              </label>
+              <label>Dimensione impresa
+                <select id="companySize">
+                  <option value="">-- Seleziona --</option>
+                  <option value="micro">Micro (0-10 dipendenti)</option>
+                  <option value="piccola">Piccola (11-50 dipendenti)</option>
+                  <option value="media">Media (51-250 dipendenti)</option>
+                  <option value="grande">Grande (&gt; 250 dipendenti)</option>
+                </select>
+              </label>
+              <label>Numero dipendenti
+                <input type="number" id="companyEmployees" min="0" placeholder="Es. 150">
+              </label>
+              <label>Fatturato annuo (€)
+                <input type="number" id="companyRevenue" min="0" step="100" placeholder="Es. 2500000">
+              </label>
+              <label>Totale bilancio (€)
+                <input type="number" id="companyBalance" min="0" step="100" placeholder="Es. 1800000">
+              </label>
+              <label>Settore
+                <input type="text" id="companySector" placeholder="Es. Energy Efficiency">
+              </label>
+              <div class="row">
+                <button class="primary" id="btnSaveCompany">Salva anagrafica</button>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <h2>Che cosa fa questa demo</h2>
+            <ul class="bullets">
+              <li>Inserisci consumi <b>manualmente</b>, da <b>CSV</b> o caricando <b>bollette PDF</b></li>
+              <li>Se il PDF è una scansione, usa <b>OCR</b> e propone i valori <b>F1/F2/F3</b></li>
+              <li>Gestisci una lista di <b>macchinari</b> e stima consumi annui da parametri di esercizio</li>
+              <li>Dashboard con profilo mensile e annuale + confronto “bollette vs macchinari”</li>
+              <li>Esporta un <b>report PDF</b> e/o un file dati <b>JSON</b></li>
+            </ul>
+
+            <div class="callout">
+              <b>Nota realistica:</b> i formati bolletta variano. Per questo la demo include una schermata di
+              <b>verifica/correzione</b> prima di salvare i dati estratti.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- STEP 4: Sistemi di autoproduzione -->
+      <section class="panel hidden" id="step4">
+        <h1>4) Sistemi di autoproduzione</h1>
+        <p class="muted">
+          Inserisci i dati di produzione e autoconsumo di impianti fotovoltaici, eolici o altri sistemi di autoproduzione.
+          Puoi aggiungere manualmente o importare un CSV.
+        </p>
+
+        <div class="tabs" id="autoTabs">
+          <button class="subtab active" data-autotab="manual">Inserimento manuale</button>
+          <button class="subtab" data-autotab="csv">Import CSV</button>
+        </div>
+
+        <div class="tabpanes" id="autoTabPanes">
+          <!-- Manual autoproduzione -->
+          <div class="tabpane" id="autotab_manual">
+            <div class="grid2">
+              <div class="card">
+                <h2>Aggiungi impianto</h2>
+                <div class="form">
+                  <label>Mese (YYYY‑MM)
+                    <input type="month" id="autoMonth">
+                  </label>
+                  <label>Tipo impianto
+                    <input type="text" id="autoType" placeholder="Es. Fotovoltaico">
+                  </label>
+                  <label>Energia prodotta (kWh)
+                    <input type="number" id="autoProduced" min="0" step="0.01" placeholder="0">
+                  </label>
+                  <label>Energia autoconsumata (kWh)
+                    <input type="number" id="autoSelf" min="0" step="0.01" placeholder="0">
+                  </label>
+                  <label>Note (opzionale)
+                    <input type="text" id="autoNote" placeholder="Note sull'impianto">
+                  </label>
+                  <div class="row">
+                    <button class="primary" id="btnAddAuto">Aggiungi</button>
+                    <button class="ghost" id="btnClearAuto">Pulisci</button>
+                  </div>
+                </div>
+              </div>
+              <div class="card">
+                <h2>Impianti inseriti</h2>
+                <div class="tablewrap">
+                  <table id="autoTable">
+                    <thead>
+                      <tr>
+                        <th>Mese</th>
+                        <th>Tipo</th>
+                        <th>Prodotta (kWh)</th>
+                        <th>Autoconsumata (kWh)</th>
+                        <th>Note</th>
+                        <th>Azioni</th>
+                      </tr>
+                    </thead>
+                    <tbody></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- CSV autoproduzione -->
+          <div class="tabpane hidden" id="autotab_csv">
+            <div class="card">
+              <h2>Importa dati autoproduzione da CSV</h2>
+              <p class="muted small">
+                Carica un CSV con intestazioni (case‑insensitive) come:
+                <code>year</code>, <code>month</code>, <code>type</code>, <code>produced_kwh</code>, <code>self_kwh</code>, <code>note</code>.
+                Alternative accettate: <code>anno</code>, <code>mese</code>, <code>tipo</code>, <code>prodotta</code>, <code>autoconsumo</code>.
+              </p>
+              <div class="row">
+                <label class="filelike primary">
+                  Scegli CSV <input type="file" id="fileAutoCSV" accept=".csv,text/csv" hidden>
+                </label>
+                <button class="ghost" id="btnDownloadAutoTemplate">Scarica modello CSV autoproduzione</button>
+              </div>
+              <div class="tablewrap">
+                <table id="autoPreview">
+                  <thead>
+                    <tr><th>#</th><th>Mese</th><th>Tipo</th><th>Prodotta</th><th>Autoconsumata</th><th>Stato</th></tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+              <div class="row mt-small">
+                <button class="ghost" id="btnExportAutoCsv">Esporta dati CSV</button>
+              </div>
+              <div class="row">
+                <button class="primary" id="btnConfirmAutoCSVImport" disabled>Conferma import</button>
+                <button class="ghost" id="btnClearAutoCSVPreview" disabled>Reset anteprima</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- STEP 5: Energia termica (utilizzatori gas) -->
+      <section class="panel hidden" id="step5">
+        <h1>5) Energia termica (utilizzatori gas)</h1>
+        <p class="muted">
+          Inserisci gli utilizzatori di gas metano (caldaie, cogeneratori, macchinari, ecc.) e stima il consumo di metano.
+          Puoi aggiungere manualmente oppure importare un CSV.
+        </p>
+
+        <div class="tabs" id="gasTabs">
+          <button class="subtab active" data-gastab="manual">Inserimento manuale</button>
+          <button class="subtab" data-gastab="csv">Import CSV</button>
+        </div>
+        <div class="tabpanes" id="gasTabPanes">
+          <!-- Manual gas users -->
+          <div class="tabpane" id="gastab_manual">
+            <div class="grid2">
+              <div class="card">
+                <h2>Aggiungi utilizzatore gas</h2>
+                <div class="form">
+                  <label>Nome utilizzatore
+                    <input type="text" id="gName" placeholder="Es. Caldaia 1">
+                  </label>
+                  <label>Tipo
+                    <input type="text" id="gType" placeholder="Es. Caldaia, Cogeneratore">
+                  </label>
+                  <div class="grid2">
+                    <label>Potenza termica (kW)
+                      <input type="number" id="gPower" min="0" step="0.01" placeholder="0">
+                    </label>
+                    <label>Rendimento (0–1 o %)
+                      <input type="number" id="gEff" min="0" step="0.01" placeholder="1">
+                    </label>
+                  </div>
+                  <div class="grid2">
+                    <label>Ore di funzionamento annue (ore/anno)
+                      <input type="number" id="gHoursYear" min="0" step="1" placeholder="Es. 1800">
+                    </label>
+                    <label>Oppure: Ore/giorno
+                      <input type="number" id="gHoursDay" min="0" step="0.1" placeholder="Es. 8">
+                    </label>
+                  </div>
+                  <div class="grid2">
+                    <label>Giorni/anno
+                      <input type="number" id="gDaysYear" min="0" step="1" placeholder="Es. 220">
+                    </label>
+                    <label>Fattore di utilizzo (0–1)
+                      <input type="number" id="gUtil" min="0" step="0.01" placeholder="1">
+                    </label>
+                  </div>
+                  <label>Note (opzionale)
+                    <input type="text" id="gNote" placeholder="Note sul sistema">
+                  </label>
+                  <div class="row">
+                    <button class="primary" id="btnAddGas">Aggiungi</button>
+                    <button class="ghost" id="btnClearGas">Pulisci</button>
+                  </div>
+                  <div class="callout small">
+                    <b>Formula demo:</b> kWh_th = kW_th × ore_annue; Smc = kWh_th ÷ (9,6 × rendimento). 1 mc di metano fornisce circa 9,6 kWh e una caldaia a condensazione con efficienza 85% fornisce ~8 kWh【611444646016594†L58-L66】.
+                  </div>
+                </div>
+              </div>
+              <div class="card">
+                <h2>Utilizzatori gas inseriti</h2>
+                <div class="tablewrap">
+                  <table id="gasTable">
+                    <thead>
+                      <tr>
+                        <th>Nome</th>
+                        <th>Tipo</th>
+                        <th>kW_th</th>
+                        <th>Ore/anno</th>
+                        <th>Rend.</th>
+                        <th>Smc/anno</th>
+                        <th>kWh_th/anno</th>
+                        <th>Azioni</th>
+                      </tr>
+                    </thead>
+                    <tbody></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- CSV gas users -->
+          <div class="tabpane hidden" id="gastab_csv">
+            <div class="card">
+              <h2>Importa utilizzatori gas da CSV</h2>
+              <p class="muted small">
+                Carica un CSV con intestazioni (case‑insensitive): <code>name</code>, <code>type</code>, <code>power_kw</code>, <code>hoursYear</code>, <code>eff</code>, <code>util</code>, <code>hoursDay</code>, <code>daysYear</code>, <code>note</code>.
+                Alternative: <code>nome</code>, <code>tipo</code>, <code>potenza</code>, <code>ore_anno</code>, <code>rendimento</code>, ecc.
+              </p>
+              <div class="row">
+                <label class="filelike primary">
+                  Scegli CSV <input type="file" id="fileGasCSV" accept=".csv,text/csv" hidden>
+                </label>
+                <button class="ghost" id="btnDownloadGasTemplate">Scarica modello CSV impianti termici</button>
+              </div>
+              <div class="tablewrap">
+                <table id="gasPreview">
+                  <thead>
+                    <tr><th>#</th><th>Nome</th><th>Tipo</th><th>kW_th</th><th>Ore/anno</th><th>Rend.</th><th>Stato</th></tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+              <div class="row mt-small">
+                <button class="ghost" id="btnExportGasCsv">Esporta dati CSV</button>
+              </div>
+              <div class="row">
+                <button class="primary" id="btnConfirmGasCSVImport" disabled>Conferma import</button>
+                <button class="ghost" id="btnClearGasCSVPreview" disabled>Reset anteprima</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- STEP 2 -->
+      <section class="panel hidden" id="step2">
+        <h1>2) Consumi energetici (elettricità e gas)</h1>
+        <p class="muted">
+          Inserisci i consumi mensili per più utenze. Puoi avere utenze separate per energia elettrica (POD) e gas (PDR). Combina più metodi: manuale, CSV e bollette PDF.
+        </p>
+
+        <!-- Gestione anni -->
+        <div class="card" style="margin-bottom: 20px;">
+          <h2>Gestione anni di riferimento</h2>
+          <div class="form">
+            <div class="grid2">
+              <div>
+                <label>Anno corrente
+                  <select id="energyYearSelector">
+                    <!-- Opzioni anno generate da JS -->
+                  </select>
+                </label>
+              </div>
+              <div>
+                <label>Aggiungi nuovo anno
+                  <div class="row">
+                    <input type="number" id="newEnergyYear" min="2000" max="2100" placeholder="Es. 2026">
+                    <button class="primary" id="btnAddEnergyYear">Aggiungi</button>
+                  </div>
+                </label>
+              </div>
+            </div>
+            <div class="muted small">
+              <b>Info anno selezionato:</b> <span id="energyYearInfo">-</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Gestione utenze -->
+        <div class="card" style="margin-bottom: 20px;">
+          <h2>Utenze registrate</h2>
+          <div class="tablewrap">
+            <table id="utilitiesTable">
+              <thead>
+                <tr>
+                  <th>Tipo</th>
+                  <th>POD/PDR</th>
+                  <th>Descrizione</th>
+                  <th>Dati</th>
+                  <th>Azioni</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <div class="row mt-small">
+            <button class="primary" id="btnAddUtility">+ Aggiungi utenza</button>
+          </div>
+        </div>
+
+        <div class="tabs">
+          <button class="tab active" data-tab="manual">Inserimento manuale</button>
+          <button class="tab" data-tab="csv">Import CSV</button>
+          <button class="tab" data-tab="pdf">Carica bollette PDF + OCR</button>
+        </div>
+
+        <div class="tabpanes">
+          <!-- Manual -->
+          <div class="tabpane" id="tab_manual">
+            <div class="grid2">
+              <div class="card">
+                <h2>Inserisci consumi mensili</h2>
+                <p class="muted small">I mesi sono compilati automaticamente. Modifica solo i valori di F1, F2, F3, Potenza Attiva e cos φ.</p>
+                <div class="form">
+                  <label>Seleziona utenza
+                    <select id="manualUtility">
+                      <!-- Opzioni generate da JS -->
+                    </select>
+                  </label>
+                  <div id="monthsGridContainer">
+                    <!-- Griglia mesi generata da JS -->
+                  </div>
+                  <div class="row" style="margin-top: 20px;">
+                    <button class="primary" id="btnSaveAllMonths">Salva tutti i mesi</button>
+                    <button class="ghost" id="btnClearAllMonths">Pulisci modulo</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="card">
+                <h2>Dati inseriti</h2>
+                <div class="tablewrap">
+                  <table id="energyTable">
+                    <thead>
+                      <tr>
+                        <th>Utenza</th>
+                        <th>Mese</th>
+                        <th>Dati</th>
+                        <th>Tot</th>
+                        <th>Azioni</th>
+                      </tr>
+                    </thead>
+                    <tbody></tbody>
+                  </table>
+                </div>
+              <div class="row mt-small">
+                <button class="ghost" id="btnExportEnergyCsv">Esporta dati CSV</button>
+              </div>
+                <div class="muted small">Suggerimento: puoi inserire 12 righe (una per mese) oppure importare da CSV o PDF.</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- CSV -->
+          <div class="tabpane hidden" id="tab_csv">
+            <div class="card">
+              <h2>Importa da CSV</h2>
+              <p class="muted small">
+                Carica un CSV con intestazioni (case-insensitive) come:
+                <code>year</code>, <code>month</code>, <code>f1_kwh</code>, <code>f2_kwh</code>, <code>f3_kwh</code>, <code>gas_kwh</code>.
+                Alternative accettate: <code>mese</code>, <code>F1</code>, <code>F2</code>, <code>F3</code>, <code>Gas</code>.
+              </p>
+
+              <div class="row">
+                <label class="filelike primary">
+                  Scegli CSV <input type="file" id="fileCSV" accept=".csv,text/csv" hidden>
+                </label>
+                <button class="ghost" id="btnDownloadEnergyTemplate">Scarica modello CSV</button>
+              </div>
+
+              <div class="tablewrap">
+                <table id="csvPreview">
+                  <thead>
+                    <tr>
+                      <th>Riga</th>
+                      <th>Mese</th>
+                      <th>F1</th>
+                      <th>F2</th>
+                      <th>F3</th>
+                      <th>Gas</th>
+                      <th>Stato</th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+
+              <div class="row">
+                <button class="primary" id="btnConfirmCSVImport" disabled>Conferma import</button>
+                <button class="ghost" id="btnClearCSVPreview" disabled>Reset anteprima</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- PDF -->
+          <div class="tabpane hidden" id="tab_pdf">
+            <div class="card">
+              <h2>Carica bollette PDF (lettura + OCR)</h2>
+              <p class="muted small">
+                Carica una o più bollette in PDF. Se la bolletta è “digitale” (testo), la demo prova a leggere direttamente.
+                Se è una scansione, attiva l’OCR e propone i valori F1/F2/F3.
+                In entrambi i casi, ti chiede conferma prima di salvare.
+              </p>
+              <div class="row">
+                <label class="filelike primary">
+                  Scegli PDF <input type="file" id="filePDF" accept="application/pdf" multiple hidden>
+                </label>
+                <button class="ghost" id="btnDownloadSamplePDF">Scarica PDF demo</button>
+              </div>
+
+              <div class="progress hidden" id="pdfProgress">
+                <div class="bar" id="pdfProgressBar"></div>
+                <div class="label" id="pdfProgressLabel">In attesa…</div>
+              </div>
+
+              <h3 class="mt">Risultati estrazione (da verificare)</h3>
+              <div class="tablewrap">
+                <table id="pdfExtractTable">
+                  <thead>
+                    <tr>
+                      <th>Fonte</th>
+                      <th>Mese</th>
+                      <th>F1 (kWh)</th>
+                      <th>F2 (kWh)</th>
+                      <th>F3 (kWh)</th>
+                      <th>Metodo</th>
+                      <th>Stato</th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+
+              <div class="row">
+                <button class="primary" id="btnConfirmPDFExtract" disabled>Conferma & salva</button>
+                <button class="ghost" id="btnClearPDFExtract" disabled>Reset</button>
+              </div>
+
+              <div class="callout">
+                <b>Tip:</b> se una bolletta ha valori in formato diverso, correggi i campi direttamente nella tabella e poi conferma.
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- STEP 3 -->
+      <section class="panel hidden" id="step3">
+        <h1>3) Inserisci macchinari (parametri di funzionamento)</h1>
+        <p class="muted">
+          Inserisci i parametri operativi del macchinario. La demo stima il consumo annuo e, se hai i consumi in bolletta,
+          ti mostra un confronto “bottom‑up vs top‑down”.
+        </p>
+
+        <div class="grid2">
+          <div class="card">
+            <h2>Aggiungi macchinario</h2>
+            <div class="form">
+              <label>Nome macchinario
+                <input type="text" id="mName" placeholder="Es. Compressore 1">
+              </label>
+
+              <div class="grid2">
+                <label>Potenza (kW)
+                  <input type="number" id="mKW" min="0" step="0.01" placeholder="0">
+                </label>
+                <label>Rendimento elettrico (0–1 o %)
+                  <input type="number" id="mEff" min="0" step="0.01" placeholder="1">
+                </label>
+              </div>
+
+              <div class="grid2">
+                <label>Ore di funzionamento annue (ore/anno)
+                  <input type="number" id="mHoursYear" min="0" step="1" placeholder="Es. 1800">
+                </label>
+                <label>Oppure: Ore/giorno
+                  <input type="number" id="mHoursDay" min="0" step="0.1" placeholder="Es. 8">
+                </label>
+              </div>
+
+              <div class="grid2">
+                <label>Giorni/anno
+                  <input type="number" id="mDaysYear" min="0" step="1" placeholder="Es. 220">
+                </label>
+                <label>Fattore di utilizzo (0–1)
+                  <input type="number" id="mUtil" min="0" step="0.01" placeholder="Es. 0.7">
+                </label>
+              </div>
+
+              <div class="grid2">
+                <label>Fattore di consumo (0–1 o >1)
+                  <input type="number" id="mConsFactor" min="0" step="0.01" placeholder="Es. 1">
+                </label>
+                <label>Note (opzionale)
+                  <input type="text" id="mNote" placeholder="Carico, ciclo, turno, ecc.">
+                </label>
+              </div>
+
+              <div class="row">
+                <button class="primary" id="btnAddMachine">Aggiungi</button>
+                <button class="ghost" id="btnClearMachine">Pulisci</button>
+              </div>
+
+              <div class="callout small">
+                <b>Formula demo:</b> kWh_annui = kW × ore_annue × fattore_utilizzo × fattore_consumo ÷ rendimento
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2>Macchinari inseriti</h2>
+            <div class="tablewrap">
+              <table id="machineTable">
+                <thead>
+                  <tr>
+                    <th>Nome</th>
+                    <th>kW</th>
+                    <th>Ore/anno</th>
+                    <th>Util.</th>
+                    <th>Cons.</th>
+                    <th>Rend.</th>
+                    <th>kWh/anno</th>
+                    <th>Azioni</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+            <div class="muted small">Puoi inserire pochi macchinari (demo) oppure l’elenco completo. I dati restano nel browser.</div>
+          </div>
+
+          <!-- Import machines from CSV -->
+          <div class="card">
+            <h2>Importa macchinari da CSV</h2>
+            <p class="muted small">
+              Carica un CSV con intestazioni (case-insensitive) come:
+              <code>name</code>, <code>kW</code>, <code>hoursYear</code>, <code>eff</code>, <code>util</code>, <code>consFactor</code>, <code>note</code>.
+              Alternative accettate: <code>nome</code>, <code>potenza</code>, <code>ore_anno</code>, ecc.
+            </p>
+            <div class="row">
+              <label class="filelike primary">
+                Scegli CSV <input type="file" id="fileMachineCSV" accept=".csv,text/csv" hidden>
+              </label>
+              <button class="ghost" id="btnDownloadMachineTemplate">Scarica modello CSV macchinari</button>
+            </div>
+            <div class="muted small">I dati importati sostituiranno eventuali macchinari con lo stesso nome.</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- STEP 6 (renamed from 4) -->
+      <section class="panel hidden" id="step6">
+        <h1>6) Dashboard</h1>
+        <p class="muted">
+          Profilo consumi per fasce (F1/F2/F3) e gas, trend mensile e confronto con stima macchinari.
+        </p>
+
+        <div class="grid2">
+          <div class="card">
+            <h2>Totali annuali</h2>
+            <div class="kpis">
+              <div class="kpi">
+                <div class="kpi-label">F1 (kWh)</div>
+                <div class="kpi-value" id="kpiF1">—</div>
+              </div>
+              <div class="kpi">
+                <div class="kpi-label">F2 (kWh)</div>
+                <div class="kpi-value" id="kpiF2">—</div>
+              </div>
+              <div class="kpi">
+                <div class="kpi-label">F3 (kWh)</div>
+                <div class="kpi-value" id="kpiF3">—</div>
+              </div>
+              <div class="kpi">
+                <div class="kpi-label">Gas (kWh)</div>
+                <div class="kpi-value" id="kpiGas">—</div>
+              </div>
+              <div class="kpi">
+                <div class="kpi-label">Totale (kWh)</div>
+                <div class="kpi-value" id="kpiTot">—</div>
+              </div>
+              <div class="kpi">
+                <div class="kpi-label">Pot. Att. media (kW)</div>
+                <div class="kpi-value" id="kpiPotenza">—</div>
+              </div>
+              <div class="kpi">
+                <div class="kpi-label">cos φ medio</div>
+                <div class="kpi-value" id="kpiCosfi">—</div>
+              </div>
+            </div>
+
+            <canvas id="chartMonthly" height="140"></canvas>
+            <div class="muted small">Grafico: totale mensile per fasce. (Se mancano mesi, i valori sono 0.)</div>
+          </div>
+
+          <div class="card">
+            <h2>Confronto (indicativo)</h2>
+            <div class="kpis">
+              <div class="kpi">
+                <div class="kpi-label">Da bollette (kWh/anno)</div>
+                <div class="kpi-value" id="kpiBills">—</div>
+              </div>
+              <div class="kpi">
+                <div class="kpi-label">Da macchinari (kWh/anno)</div>
+                <div class="kpi-value" id="kpiMachines">—</div>
+              </div>
+              <div class="kpi">
+                <div class="kpi-label">Scostamento</div>
+                <div class="kpi-value" id="kpiDelta">—</div>
+              </div>
+            </div>
+
+            <canvas id="chartShare" height="160"></canvas>
+
+            <div class="callout small">
+              Questo confronto serve come “sanity check” preliminare. In una versione full, la piattaforma
+              collega macchinari ↔ linee ↔ misure reali e gestisce baseline vs post-intervento.
+            </div>
+          </div>
+        </div>
+
+        <div class="card" id="reportArea">
+          <h2>Report (anteprima)</h2>
+          <div class="muted small">
+            Questa sezione viene esportata in PDF con il pulsante “Esporta report PDF”.
+          </div>
+
+          <div class="report">
+            <div class="report-head">
+              <div>
+                <div class="report-title" id="rTitle">OpenEurope — Report</div>
+    <div class="report-sub" id="rSub">—</div>
+              </div>
+              <div class="report-meta">
+                <div><b>Generato:</b> <span id="rGenerated">—</span></div>
+                <div><b>Anno:</b> <span id="rYear">—</span></div>
+              </div>
+            </div>
+
+            <h3>1. Sintesi consumi</h3>
+            <div class="kpirow">
+              <div class="mini"><div class="l">F1</div><div class="v" id="rF1">—</div></div>
+              <div class="mini"><div class="l">F2</div><div class="v" id="rF2">—</div></div>
+              <div class="mini"><div class="l">F3</div><div class="v" id="rF3">—</div></div>
+              <div class="mini"><div class="l">Gas</div><div class="v" id="rGas">—</div></div>
+              <div class="mini"><div class="l">Totale</div><div class="v" id="rTot">—</div></div>
+            </div>
+
+            <h3>2. Profilo mensile</h3>
+            <div class="two">
+              <div class="figure">
+                <canvas id="chartMonthlyReport" height="160"></canvas>
+                <div class="cap">Figura 1 — Consumi mensili per fasce (kWh)</div>
+              </div>
+              <div class="figure">
+                <canvas id="chartShareReport" height="160"></canvas>
+                <div class="cap">Figura 2 — Ripartizione annuale (F1/F2/F3/Gas)</div>
+              </div>
+            </div>
+
+            <h3>3. Macchinari (stima)</h3>
+            <div class="tablewrap">
+              <table id="reportMachineTable">
+                <thead>
+                  <tr>
+                    <th>Macchinario</th>
+                    <th>kW</th>
+                    <th>Ore/anno</th>
+                    <th>Util.</th>
+                    <th>Cons.</th>
+                    <th>Rend.</th>
+                    <th>kWh/anno</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+
+            <h3>4. Note</h3>
+            <div class="muted" id="rNotes">—</div>
+
+            <div class="footer muted small">
+              Demo OpenEurope — elaborazione locale. OCR e parsing richiedono verifica dell’utente.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- STEP 7 (renamed from 5) -->
+      <section class="panel hidden" id="step7">
+        <h1>7) Audit log</h1>
+        <p class="muted">
+          Traccia delle operazioni effettuate nella demo (utile per dimostrare “compliance by design” anche in versione prototipale).
+        </p>
+
+        <div class="card">
+          <div class="row">
+            <button class="ghost" id="btnClearLog">Svuota log</button>
+          </div>
+          <div class="log" id="auditLog"></div>
+        </div>
+      </section>
+
+      <footer class="foot muted small">
+        OpenEurope Demo (versione semplice) — funziona con <b>Chrome</b> o <b>Edge</b>. In caso di PDF molto pesanti, l’OCR può richiedere qualche minuto.
+      </footer>
+    </section>
+  </main>
+
+  <!-- Modale per conferme -->
+  <div class="modal hidden" id="modal">
+    <div class="modal-card">
+      <div class="modal-title" id="modalTitle">Conferma</div>
+      <div class="modal-body" id="modalBody">—</div>
+      <div class="modal-actions">
+        <button class="ghost" id="modalCancel">Annulla</button>
+        <button class="primary" id="modalOk">OK</button>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
