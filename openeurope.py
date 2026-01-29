@@ -23,12 +23,12 @@ from typing import List, Dict, Tuple
 import pandas as pd
 
 def ingest_data(file_path: str, audit_log: List[Dict[str, str]]) -> pd.DataFrame:
-    """Read consumption data from a CSV file.
+    """Read consumption data from a CSV or Excel file.
 
     Parameters
     ----------
     file_path : str
-        Path to the input CSV file.
+        Path to the input CSV or Excel file.
     audit_log : list of dict
         A list used to record audit trail entries.
 
@@ -38,7 +38,10 @@ def ingest_data(file_path: str, audit_log: List[Dict[str, str]]) -> pd.DataFrame
         DataFrame containing the raw data.
     """
     logging.info("Ingesting data from %s", file_path)
-    df = pd.read_csv(file_path)
+    if file_path.endswith('.xlsx') or file_path.endswith('.xls'):
+        df = pd.read_excel(file_path)
+    else:
+        df = pd.read_csv(file_path)
     audit_log.append({
         "step": "ingestion",
         "timestamp": datetime.now().isoformat(),
@@ -175,7 +178,7 @@ def main() -> None:
     )
     parser.add_argument(
         "csv_file",
-        help="Path to the input CSV file with consumption data"
+        help="Path to the input CSV or Excel file with consumption data"
     )
     parser.add_argument(
         "-o",
