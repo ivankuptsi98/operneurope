@@ -69,17 +69,29 @@ def normalize_data(df: pd.DataFrame, audit_log: List[Dict[str, str]]) -> pd.Data
     logging.info("Normalising data")
     before_rows = len(df)
     # Drop rows with missing consumption values
-    df_clean = df.dropna(subset=["consumption_before", "consumption_after"])
-    dropped = before_rows - len(df_clean)
+    df_clean = df.dropna(subset=["consumption_before", "consumption_after"]).copy()
+    dropped_missing = before_rows - len(df_clean)
+
+    # Ensure numeric types, coercing invalid values to NaN
+    df_clean["consumption_before"] = pd.to_numeric(
+        df_clean["consumption_before"], errors="coerce"
+    )
+    df_clean["consumption_after"] = pd.to_numeric(
+        df_clean["consumption_after"], errors="coerce"
+    )
+    before_numeric_rows = len(df_clean)
+    df_clean = df_clean.dropna(subset=["consumption_before", "consumption_after"])
+    dropped_non_numeric = before_numeric_rows - len(df_clean)
+
     audit_log.append({
         "step": "normalisation",
         "timestamp": datetime.now().isoformat(),
-        "message": f"Dropped {dropped} rows with missing consumption values"
+        "message": (
+            "Dropped "
+            f"{dropped_missing} rows with missing values and "
+            f"{dropped_non_numeric} rows with non-numeric values"
+        )
     })
-    # Ensure numeric types
-    df_clean = df_clean.copy()
-    df_clean["consumption_before"] = df_clean["consumption_before"].astype(float)
-    df_clean["consumption_after"] = df_clean["consumption_after"].astype(float)
     return df_clean
 
 def calculate_savings(df: pd.DataFrame, audit_log: List[Dict[str, str]]) -> Tuple[float, float, float, float]:
@@ -98,6 +110,9 @@ def calculate_savings(df: pd.DataFrame, audit_log: List[Dict[str, str]]) -> Tupl
         baseline_avg, new_avg, absolute savings, percentage savings
     """
     logging.info("Calculating energy savings")
+    if df.empty:
+        raise ValueError("No valid consumption data available after normalisation")
+
     baseline_avg = df["consumption_before"].mean()
     new_avg = df["consumption_after"].mean()
     savings = baseline_avg - new_avg
@@ -191,20 +206,24 @@ def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
     audit_log: List[Dict[str, str]] = []
 
-    # Execute workflow
-    df = ingest_data(args.csv_file, audit_log)
-    df_clean = normalize_data(df, audit_log)
-    baseline_avg, new_avg, savings, savings_percent = calculate_savings(df_clean, audit_log)
-    report_path = generate_report(
-        args.output_dir,
-        baseline_avg,
-        new_avg,
-        savings,
-        savings_percent,
-        audit_log,
-        args.csv_file
-    )
-    print(f"Report generated at: {report_path}")
+    try:
+        # Execute workflow
+        df = ingest_data(args.csv_file, audit_log)
+        df_clean = normalize_data(df, audit_log)
+        baseline_avg, new_avg, savings, savings_percent = calculate_savings(df_clean, audit_log)
+        report_path = generate_report(
+            args.output_dir,
+            baseline_avg,
+            new_avg,
+            savings,
+            savings_percent,
+            audit_log,
+            args.csv_file
+        )
+        print(f"Report generated at: {report_path}")
+    except (ValueError, FileNotFoundError) as exc:
+        logging.error("Audit failed: %s", exc)
+        raise SystemExit(1) from exc
 
 if __name__ == "__main__":
     main()
