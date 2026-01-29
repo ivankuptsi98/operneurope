@@ -65,20 +65,31 @@ def start_server(directory: Path, port: int = 8000) -> None:
     os.chdir(directory)
 
     handler = http.server.SimpleHTTPRequestHandler
-    with socketserver.TCPServer(("", port), handler) as httpd:
-        # Try to open the start page in the default browser
-        start_page = directory / "START_HERE.html"
-        if start_page.exists():
+    
+    # Crea una classe TCPServer personalizzata che riusa la porta
+    class ReusableTCPServer(socketserver.TCPServer):
+        allow_reuse_address = True
+    
+    try:
+        with ReusableTCPServer(("", port), handler) as httpd:
+            # Try to open the start page in the default browser
+            start_page = directory / "START_HERE.html"
+            if start_page.exists():
+                try:
+                    webbrowser.open(f"http://localhost:{port}/START_HERE.html")
+                except Exception:
+                    pass
+            print(f"Serving OpenEurope demo at http://localhost:{port}")
+            print("Press Ctrl+C to stop the server.")
             try:
-                webbrowser.open(f"http://localhost:{port}/START_HERE.html")
-            except Exception:
-                pass
-        print(f"Serving OpenEurope demo at http://localhost:{port}")
-        print("Press Ctrl+C to stop the server.")
-        try:
-            httpd.serve_forever()
-        except KeyboardInterrupt:
-            print("\nServer stopped")
+                httpd.serve_forever()
+            except KeyboardInterrupt:
+                print("\nServer stopped")
+    except OSError as e:
+        print(f"Errore avvio server: {e}")
+        print(f"La porta {port} potrebbe essere già in uso.")
+        print(f"Usa 'lsof -i :{port}' per trovare il processo.")
+        raise
 
 
 def main() -> None:
