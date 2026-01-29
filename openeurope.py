@@ -1,4 +1,4 @@
-openeurope.py#!/usr/bin/env python3
+#!/usr/bin/env python3
 """
 OpenEurope Example Program
 -------------------------
