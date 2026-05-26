@@ -2049,7 +2049,7 @@
         <td>${fmtNumber(normEff(m.eff))}</td>
         <td><b>${fmtNumber(kwh)}</b></td>
         <td>
-          <button class="ghost smallbtn" data-act="del" data-id="${m.id}">Elimina</button>
+          <button class="ghost smallbtn" data-act="del" data-id="${escapeAttr(m.id)}">Elimina</button>
         </td>
       `;
       tbody.appendChild(tr);
