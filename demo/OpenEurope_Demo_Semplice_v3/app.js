@@ -882,11 +882,11 @@
       const tr = document.createElement("tr");
       tr.innerHTML = `
         <td>${typeLabel}<br><small>${escapeHtml(utilLabel)}</small></td>
-        <td><b>${r.month}</b></td>
+        <td><b>${escapeHtml(r.month)}</b></td>
         <td>${dataStr}${extraInfo}</td>
         <td><b>${fmtNumber(tot)}</b></td>
         <td>
-          <button class="ghost smallbtn" data-del-energy="${r.utilityId}" data-month="${r.month}">Elimina</button>
+          <button class="ghost smallbtn" data-del-energy="${escapeAttr(r.utilityId)}" data-month="${escapeAttr(r.month)}">Elimina</button>
         </td>
       `;
       tbody.appendChild(tr);
@@ -2049,7 +2049,7 @@
         <td>${fmtNumber(normEff(m.eff))}</td>
         <td><b>${fmtNumber(kwh)}</b></td>
         <td>
-          <button class="ghost smallbtn" data-act="del" data-id="${m.id}">Elimina</button>
+          <button class="ghost smallbtn" data-act="del" data-id="${escapeAttr(m.id)}">Elimina</button>
         </td>
       `;
       tbody.appendChild(tr);
